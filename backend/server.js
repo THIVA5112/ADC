@@ -753,22 +753,23 @@ app.get('/bill/print/:patientId/:invoiceNo', async (req, res) => {
 
   // Table header
   const tableStartY = doc.y;
-  doc.rect(50, tableStartY, 540, 24).stroke('black').lineWidth(2);
+  const rowHeight = 40;
+  doc.rect(50, tableStartY, 540, rowHeight).stroke('black').lineWidth(2);
   doc.fontSize(12).fillColor('black')
-     .text('No.', 60, tableStartY + 6, { width: 30, align: 'left' })
-     .text('Type', 100, tableStartY + 6, { width: 180, align: 'left' })
-     .text('Description', 280, tableStartY + 6, { width: 160, align: 'left' })
-     .text('Estimate (₹)', 440, tableStartY + 6, { width: 120, align: 'left' });
+     .text('No.', 60, tableStartY + 12, { width: 30, align: 'left' })
+     .text('Type', 100, tableStartY + 12, { width: 140, align: 'left' })
+     .text('Description', 280, tableStartY + 12, { width: 180, align: 'left' })
+     .text('Estimate (₹)', 440, tableStartY + 12, { width: 120, align: 'left' });
 
-  let y = tableStartY + 24;
+  let y = tableStartY + rowHeight;
   treatments.forEach((t, idx) => {
-    doc.rect(50, y, 540, 24).stroke('black').lineWidth(2);
+    doc.rect(50, y, 540, rowHeight).stroke('black').lineWidth(2);
     doc.fontSize(12).fillColor('black')
-       .text(idx + 1, 60, y + 6, { width: 30, align: 'left' })
-       .text(t.type || '', 100, y + 6, { width: 180, align: 'left', ellipsis: false })
-       .text(t.description || '', 280, y + 6, { width: 160, align: 'left', ellipsis: false })
-       .text(`₹${t.estimate || 0}`, 440, y + 6, { width: 120, align: 'left' });
-    y += 24;
+       .text(idx + 1, 60, y + 12, { width: 30, align: 'left' })
+       .text(t.type || '', 100, y + 12, { width: 140, align: 'left', ellipsis: false })
+       .text(t.description || '', 280, y + 12, { width: 180, align: 'left', ellipsis: false })
+       .text(`₹${t.estimate || 0}`, 440, y + 12, { width: 120, align: 'left' });
+    y += rowHeight;
   });
   doc.moveDown(2);
 
