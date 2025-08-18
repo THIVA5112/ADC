@@ -753,7 +753,7 @@ app.get('/bill/print/:patientId/:invoiceNo', async (req, res) => {
 
   // Table header
   const tableStartY = doc.y;
-  const rowHeight = 40;
+  const rowHeight = 60;
   doc.rect(50, tableStartY, 540, rowHeight).stroke('black').lineWidth(2);
   doc.fontSize(12).fillColor('black')
      .text('No.', 60, tableStartY + 12, { width: 30, align: 'left' })
