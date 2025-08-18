@@ -1,1 +1,1 @@
-const String apiBaseUrl = 'http://10.126.244.165:3000';
+const String apiBaseUrl = 'https://adc-jr4t.onrender.com';
