@@ -778,7 +778,7 @@ app.get('/bill/print/:patientId/:invoiceNo', async (req, res) => {
   doc.moveDown(0.5);
 
   // Table header
-  const payTableStartY = doc.y;
+  let payTableStartY = doc.y;
   doc.rect(50, payTableStartY, 540, 24).stroke('black').lineWidth(2);
   doc.fontSize(12).fillColor('black')
      .text('No.', 60, payTableStartY + 6, { width: 30, align: 'left' })
