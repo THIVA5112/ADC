@@ -778,14 +778,13 @@ app.get('/bill/print/:patientId/:invoiceNo', async (req, res) => {
   doc.moveDown(0.5);
 
   // Table header
-  const payTableStartY = doc.y;
-  doc.rect(50, payTableStartY, 540, 24).stroke('black').lineWidth(2);
+  doc.rect(50, doc.y, 540, 24).stroke('black').lineWidth(2);
   doc.fontSize(12).fillColor('black')
-     .text('No.', 60, payTableStartY + 6, { width: 30, align: 'left' })
-     .text('Amount (₹)', 100, payTableStartY + 6, { width: 120, align: 'left' })
-     .text('Date', 220, payTableStartY + 6, { width: 120, align: 'left' })
-     .text('Mode', 340, payTableStartY + 6, { width: 80, align: 'left' })
-     .text('Txn ID', 430, payTableStartY + 6, { width: 120, align: 'left' });
+     .text('No.', 60, doc.y + 6, { width: 30, align: 'left' })
+     .text('Amount (₹)', 100, doc.y + 6, { width: 120, align: 'left' })
+     .text('Date', 220, doc.y + 6, { width: 120, align: 'left' })
+     .text('Mode', 340, doc.y + 6, { width: 80, align: 'left' })
+     .text('Txn ID', 430, doc.y + 6, { width: 120, align: 'left' });
 
   let py = doc.y + 24;
   payments.forEach((p, idx) => {
