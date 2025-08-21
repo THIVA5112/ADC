@@ -778,7 +778,7 @@ app.get('/bill/print/:patientId/:invoiceNo', async (req, res) => {
   doc.moveDown(0.5);
 
   // Table header
-  let payTableStartY = doc.y;
+  const payTableStartY = doc.y;
   doc.rect(50, payTableStartY, 540, 24).stroke('black').lineWidth(2);
   doc.fontSize(12).fillColor('black')
      .text('No.', 60, payTableStartY + 6, { width: 30, align: 'left' })
@@ -787,7 +787,7 @@ app.get('/bill/print/:patientId/:invoiceNo', async (req, res) => {
      .text('Mode', 340, payTableStartY + 6, { width: 80, align: 'left' })
      .text('Txn ID', 430, payTableStartY + 6, { width: 120, align: 'left' });
 
-  let py = payTableStartY + 24;
+  let py = doc.y + 24;
   payments.forEach((p, idx) => {
     doc.rect(50, py, 540, 24).stroke('black').lineWidth(2);
     doc.fontSize(12).fillColor('black')
