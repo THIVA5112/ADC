@@ -848,7 +848,6 @@ app.get('/bill/print/:patientId/:invoiceNo', async (req, res) => {
   }
 });
 
-
  
 
   // Totals summary table with right-aligned amounts
@@ -869,10 +868,9 @@ app.get('/bill/print/:patientId/:invoiceNo', async (req, res) => {
      .text(`₹${balance}`, 450, summaryStartY + 54, { width: 120, align: 'right' });
 
   doc.moveDown(2);
-
-
   doc.end();
-});
+  
+
 
 app.get('/lab-warranty/search', async (req, res) => {
   const { query } = req.query;
@@ -908,6 +906,3 @@ app.get('/lab-warranty/search', async (req, res) => {
 
   res.json(results);
 });
-
-
-
