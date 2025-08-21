@@ -774,7 +774,7 @@ app.get('/bill/print/:patientId/:invoiceNo', async (req, res) => {
   doc.moveDown(2);
 
   // Payments section (left aligned, underlined)
-  doc.fontSize(14).text('Payment Details:', 50, doc.y, { underline: true, align: 'left' });
+  doc.fontSize(14).text('Payment Details:', 50, { underline: true, align: 'left' });
   doc.moveDown(0.5);
 
   // Table header
