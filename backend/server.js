@@ -703,174 +703,147 @@ app.get('/patients/:id/treatment-types', async (req, res) => {
 
 // Example Express route
 app.get('/bill/print/:patientId/:invoiceNo', async (req, res) => {
-  try {
-    const fontPath = path.join(__dirname, 'fonts', 'NotoSans-Regular.ttf');
-    const { patientId, invoiceNo } = req.params;
-    const patient = await Patient.findOne({ patientId: Number(patientId) });
-    if (!patient) return res.status(404).send('Patient not found');
+  const fontPath = path.join(__dirname, 'fonts', 'NotoSans-Regular.ttf');
+  const { patientId, invoiceNo } = req.params;
+  const patient = await Patient.findOne({ patientId: Number(patientId) });
+  if (!patient) return res.status(404).send('Patient not found');
 
-    // Search in payments array instead of bills
-    const payment = (patient.payments || []).find(p => p.invoiceNo == invoiceNo);
-    if (!payment) return res.status(404).send('Invoice not found');
-    const treatments = patient.treatments || [];
-    const payments = patient.payments || [];
-    const totalEstimate = treatments.reduce((sum, t) => sum + (Number(t.estimate) || 0), 0);
-    const totalPaid = (patient.payments || []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-    const balance = totalEstimate - totalPaid;
+  // Search in payments array instead of bills
+  const payment = (patient.payments || []).find(p => p.invoiceNo == invoiceNo);
+  if (!payment) return res.status(404).send('Invoice not found');
+  const treatments = patient.treatments || [];
+  const payments = patient.payments || [];
+  const totalEstimate = treatments.reduce((sum, t) => sum + (Number(t.estimate) || 0), 0);
+  const totalPaid = (patient.payments || []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  const balance = totalEstimate - totalPaid;
 
-    // PDF generation (only after all checks pass)
-    const doc = new PDFDocument();
-    doc.registerFont('NotoSans', fontPath);
-    doc.font('NotoSans');
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=invoice_${invoiceNo}.pdf`);
-    doc.pipe(res);
+  
 
-    // Header
-    doc.fontSize(20).text('Patient Invoice', { align: 'center' });
-    doc.moveDown();
 
-    // Invoice No
-    doc.fontSize(14).text(`Invoice No: ${payment.invoiceNo}`, { align: 'left' });
-    doc.fontSize(12).text(`Patient ID: ${patient.patientId}`, { align: 'left' });
-    doc.text(`Name: ${patient.name}`, { align: 'left' });
-    doc.text(`Phone: ${patient.phone}`, { align: 'left' });
-    doc.text(`Address: ${patient.address}`, { align: 'left' });
-    doc.text(`Date: ${payment.date ? new Date(payment.date).toLocaleDateString() : new Date().toLocaleDateString()}`, { align: 'left' });
-    doc.moveDown();
+  // PDF generation
+  const doc = new PDFDocument();
+  doc.registerFont('NotoSans', fontPath);
+  doc.font('NotoSans'); // Use Unicode font
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename=invoice_${invoiceNo}.pdf`);
+  doc.pipe(res);
 
-    // Chief Complaints section (left aligned, underlined)
-    doc.fontSize(14).text('Chief Complaint Details:', { underline: true, align: 'left' });
-    doc.moveDown(0.5);
-    doc.fontSize(12).text(patient.chiefComplaints || 'None', { align: 'left' });
-    doc.moveDown();
+  // Header
+  doc.fontSize(20).text('Patient Invoice', { align: 'center' });
+  doc.moveDown();
 
-    // Treatments section (left aligned, underlined)
-    doc.fontSize(14).text('Treatment Details:', { underline: true, align: 'left' });
-    doc.moveDown(0.5);
+  // Invoice No
+  doc.fontSize(14).text(`Invoice No: ${payment.invoiceNo}`, { align: 'left' });
+  doc.fontSize(12).text(`Patient ID: ${patient.patientId}`, { align: 'left' });
+  doc.text(`Name: ${patient.name}`, { align: 'left' });
+  doc.text(`Phone: ${patient.phone}`, { align: 'left' });
+  doc.text(`Address: ${patient.address}`, { align: 'left' });
+  doc.text(`Date: ${payment.date ? new Date(payment.date).toLocaleDateString() : new Date().toLocaleDateString()}`, { align: 'left' });
+  doc.moveDown();
 
-    // Table header
-    const tableStartY = doc.y;
-    const rowHeight = 60;
-    doc.rect(50, tableStartY, 540, rowHeight).stroke('black').lineWidth(2);
-    doc.fontSize(12).fillColor('black')
-       .text('No.', 60, tableStartY + 12, { width: 30, align: 'left' })
-       .text('Type', 100, tableStartY + 12, { width: 140, align: 'left' })
-       .text('Description', 280, tableStartY + 12, { width: 180, align: 'left' })
-       .text('Estimate (₹)', 440, tableStartY + 12, { width: 120, align: 'left' });
+  // Chief Complaints section (left aligned, underlined)
+  doc.fontSize(14).text('Chief Complaint Details:', { underline: true, align: 'left' });
+  doc.moveDown(0.5);
+  doc.fontSize(12).text(patient.chiefComplaints || 'None', { align: 'left' });
+  doc.moveDown();
 
-    let y = tableStartY + rowHeight;
-    treatments.forEach((t, idx) => {
-      doc.rect(50, y, 540, rowHeight).stroke('black').lineWidth(2);
+  // Treatments section (left aligned, underlined)
+  doc.fontSize(14).text('Treatment Details:', { underline: true, align: 'left' });
+  doc.moveDown(0.5);
+
+  // Table header
+  const tableStartY = doc.y;
+  doc.rect(50, tableStartY, 540, 24).stroke('black').lineWidth(2);
+  doc.fontSize(12).fillColor('black')
+     .text('No.', 60, tableStartY + 6, { width: 30, align: 'left' })
+     .text('Type', 100, tableStartY + 6, { width: 180, align: 'left' })
+     .text('Description', 280, tableStartY + 6, { width: 160, align: 'left' })
+     .text('Estimate (₹)', 440, tableStartY + 6, { width: 120, align: 'left' });
+
+  let y = tableStartY + 24;
+  treatments.forEach((t, idx) => {
+    // If near bottom, add a new page and reset y
+    if (y + 24 > doc.page.height - 60) {
+      doc.addPage();
+      y = 50;
+      // Redraw table header on new page
+      doc.rect(50, y, 540, 24).stroke('black').lineWidth(2);
       doc.fontSize(12).fillColor('black')
-         .text(idx + 1, 60, y + 12, { width: 30, align: 'left' })
-         .text(t.type || '', 100, y + 12, { width: 140, align: 'left', ellipsis: false })
-         .text(t.description || '', 280, y + 12, { width: 180, align: 'left', ellipsis: false })
-         .text(`₹${t.estimate || 0}`, 440, y + 12, { width: 120, align: 'left' });
-      y += rowHeight;
-    });
-    doc.moveDown(2);
-
-    // Payments section (left aligned, underlined)
-    doc.fontSize(14).text('Payment Details:', 50, { underline: true, align: 'left' });
-    doc.moveDown(0.5);
-
-    // Table header
-    doc.rect(50, doc.y, 540, 24).stroke('black').lineWidth(2);
-    doc.fontSize(12).fillColor('black')
-       .text('No.', 60, doc.y + 6, { width: 30, align: 'left' })
-       .text('Amount (₹)', 100, doc.y + 6, { width: 120, align: 'left' })
-       .text('Date', 220, doc.y + 6, { width: 120, align: 'left' })
-       .text('Mode', 340, doc.y + 6, { width: 80, align: 'left' })
-       .text('Txn ID', 430, doc.y + 6, { width: 120, align: 'left' });
-
-    let py = doc.y + 24;
-    const bottomMargin = 60; // Space to leave at bottom
-
-    payments.forEach((p, idx) => {
-      // If near bottom, add a new page and reset py
-      if (py + 24 > doc.page.height - bottomMargin) {
-        doc.addPage();
-        py = 50; // Top margin for new page
-        // Redraw table header on new page
-        doc.rect(50, py, 540, 24).stroke('black').lineWidth(2);
-        doc.fontSize(12).fillColor('black')
-          .text('No.', 60, py + 6, { width: 30, align: 'left' })
-          .text('Amount (₹)', 100, py + 6, { width: 120, align: 'left' })
-          .text('Date', 220, py + 6, { width: 120, align: 'left' })
-          .text('Mode', 340, py + 6, { width: 80, align: 'left' })
-          .text('Txn ID', 430, py + 6, { width: 120, align: 'left' });
-        py += 24;
-      }
-
-      doc.rect(50, py, 540, 24).stroke('black').lineWidth(2);
-      doc.fontSize(12).fillColor('black')
-        .text(idx + 1, 60, py + 6, { width: 30, align: 'left' })
-        .text(`₹${p.amount || 0}`, 100, py + 6, { width: 120, align: 'left' })
-        .text(p.date ? new Date(p.date).toLocaleDateString() : '', 220, py + 6, { width: 120, align: 'left' })
-        .text(p.mode || '', 340, py + 6, { width: 80, align: 'left' })
-        .text(p.transactionId || '', 430, py + 6, { width: 120, align: 'left' });
-      py += 24;
-    });
-    doc.moveDown(2);
-
- 
-
-    // Totals summary table with right-aligned amounts
-    const summaryStartY = doc.y;
-    doc.rect(320, summaryStartY, 270, 24).stroke('black').lineWidth(2);
-    doc.fontSize(12).fillColor('black')
-       .text('Total Estimate', 330, summaryStartY + 6, { width: 120, align: 'left' })
-       .text(`₹${totalEstimate}`, 450, summaryStartY + 6, { width: 120, align: 'right' });
-
-    doc.rect(320, summaryStartY + 24, 270, 24).stroke('black').lineWidth(2);
-    doc.fontSize(12).fillColor('black')
-       .text('Total Paid', 330, summaryStartY + 30, { width: 120, align: 'left' })
-       .text(`₹${totalPaid}`, 450, summaryStartY + 30, { width: 120, align: 'right' });
-
-    doc.rect(320, summaryStartY + 48, 270, 24).stroke('black').lineWidth(2);
-    doc.fontSize(12).fillColor('black')
-       .text('Balance', 330, summaryStartY + 54, { width: 120, align: 'left' })
-       .text(`₹${balance}`, 450, summaryStartY + 54, { width: 120, align: 'right' });
-
-    doc.moveDown(2);
-
-
-    doc.end();
-  } catch (err) {
-    // Only send error if headers are not already sent
-    if (!res.headersSent) {
-      res.status(500).send('Internal Server Error: ' + err.message);
-    } else {
-      console.error('PDF generation error:', err);
-      // Cannot send another response here
+        .text('No.', 60, y + 6, { width: 30, align: 'left' })
+        .text('Type', 100, y + 6, { width: 180, align: 'left' })
+        .text('Description', 280, y + 6, { width: 160, align: 'left' })
+        .text('Estimate (₹)', 440, y + 6, { width: 120, align: 'left' });
+      y += 24;
     }
-  }
-});
+    doc.rect(50, y, 540, 24).stroke('black').lineWidth(2);
+    doc.fontSize(12).fillColor('black')
+       .text(idx + 1, 60, y + 6, { width: 30, align: 'left' })
+       .text(t.type || '', 100, y + 6, { width: 180, align: 'left', ellipsis: false })
+       .text(t.description || '', 280, y + 6, { width: 160, align: 'left', ellipsis: false })
+       .text(`₹${t.estimate || 0}`, 440, y + 6, { width: 120, align: 'left' });
+    y += 24;
+  });
+  doc.y = y; // Update doc.y to the last y position
+  doc.moveDown(2);
+
+  // Payments section (left aligned, underlined)
+  doc.fontSize(14).text('Payment Details:', 50, doc.y, { underline: true, align: 'left' });
+  doc.moveDown(0.5);
+
+  // Table header
+  const payTableStartY = doc.y;
+  doc.rect(50, payTableStartY, 540, 24).stroke('black').lineWidth(2);
+  doc.fontSize(12).fillColor('black')
+     .text('No.', 60, payTableStartY + 6, { width: 30, align: 'left' })
+     .text('Amount (₹)', 100, payTableStartY + 6, { width: 120, align: 'left' })
+     .text('Date', 220, payTableStartY + 6, { width: 120, align: 'left' })
+     .text('Mode', 340, payTableStartY + 6, { width: 80, align: 'left' })
+     .text('Txn ID', 430, payTableStartY + 6, { width: 120, align: 'left' });
+
+  let py = payTableStartY + 24;
+  payments.forEach((p, idx) => {
+    doc.rect(50, py, 540, 24).stroke('black').lineWidth(2);
+    doc.fontSize(12).fillColor('black')
+       .text(idx + 1, 60, py + 6, { width: 30, align: 'left' })
+       .text(`₹${p.amount || 0}`, 100, py + 6, { width: 120, align: 'left' })
+       .text(p.date ? new Date(p.date).toLocaleDateString() : '', 220, py + 6, { width: 120, align: 'left' })
+       .text(p.mode || '', 340, py + 6, { width: 80, align: 'left' })
+       .text(p.transactionId || '', 430, py + 6, { width: 120, align: 'left' });
+    py += 24;
+  });
+  doc.moveDown(2);
 
  
 
   // Totals summary table with right-aligned amounts
-  const summaryStartY = doc.y;
-  doc.rect(320, summaryStartY, 270, 24).stroke('black').lineWidth(2);
-  doc.fontSize(12).fillColor('black')
-     .text('Total Estimate', 330, summaryStartY + 6, { width: 120, align: 'left' })
-     .text(`₹${totalEstimate}`, 450, summaryStartY + 6, { width: 120, align: 'right' });
+  // Before drawing the summary table, check if there's enough space left on the page
+const summaryTableHeight = 3 * 24 + 24; // 3 rows + some space
+if (doc.y + summaryTableHeight > doc.page.height - 60) {
+  doc.addPage();
+  doc.y = 50; // Reset to top margin
+}
 
-  doc.rect(320, summaryStartY + 24, 270, 24).stroke('black').lineWidth(2);
-  doc.fontSize(12).fillColor('black')
-     .text('Total Paid', 330, summaryStartY + 30, { width: 120, align: 'left' })
-     .text(`₹${totalPaid}`, 450, summaryStartY + 30, { width: 120, align: 'right' });
+const summaryStartY = doc.y;
+doc.rect(320, summaryStartY, 270, 24).stroke('black').lineWidth(2);
+doc.fontSize(12).fillColor('black')
+   .text('Total Estimate', 330, summaryStartY + 6, { width: 120, align: 'left' })
+   .text(`₹${totalEstimate}`, 450, summaryStartY + 6, { width: 120, align: 'right' });
 
-  doc.rect(320, summaryStartY + 48, 270, 24).stroke('black').lineWidth(2);
-  doc.fontSize(12).fillColor('black')
-     .text('Balance', 330, summaryStartY + 54, { width: 120, align: 'left' })
-     .text(`₹${balance}`, 450, summaryStartY + 54, { width: 120, align: 'right' });
+doc.rect(320, summaryStartY + 24, 270, 24).stroke('black').lineWidth(2);
+doc.fontSize(12).fillColor('black')
+   .text('Total Paid', 330, summaryStartY + 30, { width: 120, align: 'left' })
+   .text(`₹${totalPaid}`, 450, summaryStartY + 30, { width: 120, align: 'right' });
 
-  doc.moveDown(2);
+doc.rect(320, summaryStartY + 48, 270, 24).stroke('black').lineWidth(2);
+doc.fontSize(12).fillColor('black')
+   .text('Balance', 330, summaryStartY + 54, { width: 120, align: 'left' })
+   .text(`₹${balance}`, 450, summaryStartY + 54, { width: 120, align: 'right' });
+
+doc.moveDown(2);
+
+
   doc.end();
-  
-
+});
 
 app.get('/lab-warranty/search', async (req, res) => {
   const { query } = req.query;
