@@ -790,28 +790,43 @@ app.get('/bill/print/:patientId/:invoiceNo', async (req, res) => {
   doc.fontSize(14).text('Payment Details:', 50, doc.y, { underline: true, align: 'left' });
   doc.moveDown(0.5);
 
-  // Table header
-  const payTableStartY = doc.y;
-  doc.rect(50, payTableStartY, 540, 24).stroke('black').lineWidth(2);
-  doc.fontSize(12).fillColor('black')
-     .text('No.', 60, payTableStartY + 6, { width: 30, align: 'left' })
-     .text('Amount (₹)', 100, payTableStartY + 6, { width: 120, align: 'left' })
-     .text('Date', 220, payTableStartY + 6, { width: 120, align: 'left' })
-     .text('Mode', 340, payTableStartY + 6, { width: 80, align: 'left' })
-     .text('Txn ID', 430, payTableStartY + 6, { width: 120, align: 'left' });
+ // Table header
+const payTableStartY = doc.y;
+doc.rect(50, payTableStartY, 540, 24).stroke('black').lineWidth(2);
+doc.fontSize(12).fillColor('black')
+   .text('No.', 60, payTableStartY + 6, { width: 30, align: 'left' })
+   .text('Amount (₹)', 100, payTableStartY + 6, { width: 120, align: 'left' })
+   .text('Date', 220, payTableStartY + 6, { width: 120, align: 'left' })
+   .text('Mode', 340, payTableStartY + 6, { width: 80, align: 'left' })
+   .text('Txn ID', 430, payTableStartY + 6, { width: 120, align: 'left' });
 
-  let py = payTableStartY + 24;
-  payments.forEach((p, idx) => {
+let py = doc.y
+payments.forEach((p, idx) => {
+  // If near bottom, add a new page and reset py
+  if (py + 24 > doc.page.height - 60) {
+    doc.addPage();
+    py = 50;
+    // Redraw table header on new page
     doc.rect(50, py, 540, 24).stroke('black').lineWidth(2);
     doc.fontSize(12).fillColor('black')
-       .text(idx + 1, 60, py + 6, { width: 30, align: 'left' })
-       .text(`₹${p.amount || 0}`, 100, py + 6, { width: 120, align: 'left' })
-       .text(p.date ? new Date(p.date).toLocaleDateString() : '', 220, py + 6, { width: 120, align: 'left' })
-       .text(p.mode || '', 340, py + 6, { width: 80, align: 'left' })
-       .text(p.transactionId || '', 430, py + 6, { width: 120, align: 'left' });
+      .text('No.', 60, py + 6, { width: 30, align: 'left' })
+      .text('Amount (₹)', 100, py + 6, { width: 120, align: 'left' })
+      .text('Date', 220, py + 6, { width: 120, align: 'left' })
+      .text('Mode', 340, py + 6, { width: 80, align: 'left' })
+      .text('Txn ID', 430, py + 6, { width: 120, align: 'left' });
     py += 24;
-  });
-  doc.moveDown(2);
+  }
+  doc.rect(50, py, 540, 24).stroke('black').lineWidth(2);
+  doc.fontSize(12).fillColor('black')
+     .text(idx + 1, 60, py + 6, { width: 30, align: 'left' })
+     .text(`₹${p.amount || 0}`, 100, py + 6, { width: 120, align: 'left' })
+     .text(p.date ? new Date(p.date).toLocaleDateString() : '', 220, py + 6, { width: 120, align: 'left' })
+     .text(p.mode || '', 340, py + 6, { width: 80, align: 'left' })
+     .text(p.transactionId || '', 430, py + 6, { width: 120, align: 'left' });
+  py += 24;
+});
+doc.y = py; // Update doc.y to the last y position
+doc.moveDown(2);
 
  
 
@@ -879,3 +894,7 @@ app.get('/lab-warranty/search', async (req, res) => {
 
   res.json(results);
 });
+
+
+
+
