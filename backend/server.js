@@ -763,7 +763,7 @@ app.get('/bill/print/:patientId/:invoiceNo', async (req, res) => {
   let y = tableStartY + 24;
   treatments.forEach((t, idx) => {
     // If near bottom, add a new page and reset y
-    if (y + 24 > doc.page.height - 60) {
+    if (y + 24 > doc.page.height - 80) {
       doc.addPage();
       y = 50;
       // Redraw table header on new page
@@ -803,7 +803,7 @@ doc.fontSize(12).fillColor('black')
 let py = doc.y
 payments.forEach((p, idx) => {
   // If near bottom, add a new page and reset py
-  if (py + 24 > doc.page.height - 60) {
+  if (py + 24 > doc.page.height - 100) {
     doc.addPage();
     py = 50;
     // Redraw table header on new page
