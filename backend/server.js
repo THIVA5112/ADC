@@ -14,6 +14,7 @@ import Treatment, { seedTreatments } from './models/treatment.js'; // Import Tre
 import Appointment from './models/appointment.js';
 import Expense from './models/expense.js';
 import LabWarranty from './models/Lab_Warranty.js'; // Import LabWarranty model
+import Medication from './models/medication.js';
 
 // Polyfill __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -22,7 +23,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-mongoose.connect(process.env.MONGODB_URI, {
+mongoose.connect('mongodb://localhost:27017/patients', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });
@@ -45,8 +46,8 @@ app.post('/register', async (req, res) => {
 
 // Add user
 app.post('/users', async (req, res) => {
-  const { email, password, capabilityLevel } = req.body;
-  if (!email || !password || capabilityLevel == null)
+  const { email, password, capabilityLevel, branch } = req.body;
+  if (!email || !password || capabilityLevel == null || !branch)
     return res.status(400).json({ message: 'Missing fields' });
 
   const existing = await User.findOne({ email });
@@ -58,6 +59,7 @@ app.post('/users', async (req, res) => {
     email,
     password: hashedPassword,
     capabilityLevel: Number(capabilityLevel), // <-- ensure it's a number
+    branch, // <-- add branch
   });
   res.status(201).json(user);
 });
@@ -94,7 +96,8 @@ app.post('/login', async (req, res) => {
   // Return only needed fields
   res.json({
     email: user.email,
-    capabilityLevel: user.capabilityLevel ?? 1, // <-- This is what your Flutter app uses
+    capabilityLevel: user.capabilityLevel ?? 1,
+    branch: user.branch // <-- This is what your Flutter app uses
   });
 });
 
@@ -171,9 +174,13 @@ app.put('/patients/patientid/:patientId', async (req, res) => {
 
 // Patient search by name, phone, or patientId using Mongoose
 app.get('/patients', async (req, res) => {
-  const { query, date, month, year } = req.query;
+  console.log(req.query);
+  const { capabilityLevel, branch, query, date, month, year } = req.query;
   let filter = {};
 
+  if (Number(capabilityLevel) !== 2 && branch) {
+    filter.branch = branch;
+  }
   // Search by name, phone, or patientId
   if (query) {
     filter.$or = [
@@ -202,7 +209,6 @@ app.get('/patients', async (req, res) => {
     filter.createdAt = { $gte: start, $lte: end };
   }
 
-  // Always select patientId, name, phone, and other needed fields
   const patients = await Patient.find(filter).select('patientId name age gender address phone treatments payments description branch chiefComplaints hasComplication description');
   res.json(patients);
 });
@@ -408,7 +414,7 @@ app.get('/patients/:id', async (req, res) => {
   res.json(patient);
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
@@ -751,40 +757,46 @@ app.get('/bill/print/:patientId/:invoiceNo', async (req, res) => {
   doc.fontSize(14).text('Treatment Details:', { underline: true, align: 'left' });
   doc.moveDown(0.5);
 
-  // Table header
-  const tableStartY = doc.y;
-  doc.rect(50, tableStartY, 540, 24).stroke('black').lineWidth(2);
-  doc.fontSize(12).fillColor('black')
-     .text('No.', 60, tableStartY + 6, { width: 30, align: 'left' })
-     .text('Type', 100, tableStartY + 6, { width: 180, align: 'left' })
-     .text('Description', 280, tableStartY + 6, { width: 160, align: 'left' })
-     .text('Estimate (₹)', 440, tableStartY + 6, { width: 120, align: 'left' });
+// Table header
+let y = doc.y;
+doc.rect(50, y, 540, 24).stroke('black').lineWidth(2);
+doc.fontSize(12).fillColor('black')
+   .text('No.', 60, y + 6, { width: 30, align: 'left' })
+   .text('Type', 90, y + 6, { width: 100, align: 'left' })
+   .text('Description', 90 + 100, y + 6, { width: 200, align: 'left' })
+   .text('Estimate (₹)', 90 + 100 + 200, y + 6, { width: 120, align: 'left' });
 
-  let y = tableStartY + 24;
-  treatments.forEach((t, idx) => {
-    // If near bottom, add a new page and reset y
-    if (y + 24 > doc.page.height - 80) {
-      doc.addPage();
-      y = 50;
-      // Redraw table header on new page
-      doc.rect(50, y, 540, 24).stroke('black').lineWidth(2);
-      doc.fontSize(12).fillColor('black')
-        .text('No.', 60, y + 6, { width: 30, align: 'left' })
-        .text('Type', 100, y + 6, { width: 180, align: 'left' })
-        .text('Description', 280, y + 6, { width: 160, align: 'left' })
-        .text('Estimate (₹)', 440, y + 6, { width: 120, align: 'left' });
-      y += 24;
-    }
+y += 24;
+
+treatments.forEach((t, idx) => {
+  // Calculate the height needed for wrapping
+  const typeHeight = doc.heightOfString(t.type || '', { width: 65 });
+  const descHeight = doc.heightOfString(t.description || '', { width: 200 });
+  const rowHeight = Math.max(typeHeight, descHeight, 24);
+
+  // If near bottom, add a new page and redraw header
+  if (y + rowHeight > doc.page.height - 60) {
+    doc.addPage();
+    y = 50;
     doc.rect(50, y, 540, 24).stroke('black').lineWidth(2);
     doc.fontSize(12).fillColor('black')
-       .text(idx + 1, 60, y + 6, { width: 30, align: 'left' })
-       .text(t.type || '', 100, y + 6, { width: 180, align: 'left', ellipsis: false })
-       .text(t.description || '', 280, y + 6, { width: 160, align: 'left', ellipsis: false })
-       .text(`₹${t.estimate || 0}`, 440, y + 6, { width: 120, align: 'left' });
+      .text('No.', 60, y + 6, { width: 30, align: 'left' })
+      .text('Type', 90, y + 6, { width: 100, align: 'left' })
+      .text('Description', 90 + 100, y + 6, { width: 200, align: 'left' })
+      .text('Estimate (₹)', 90 + 100 + 200, y + 6, { width: 120, align: 'left' });
     y += 24;
-  });
-  doc.y = y; // Update doc.y to the last y position
-  doc.moveDown(2);
+  }
+
+  doc.rect(50, y, 540, rowHeight).stroke('black').lineWidth(2);
+  doc.fontSize(12).fillColor('black')
+     .text(idx + 1, 60, y + 6, { width: 30, align: 'left' })
+     .text(t.type || '', 90, y + 6, { width: 100, align: 'left' })
+     .text(t.description || '', 90 + 100, y + 6, { width: 200, align: 'left' })
+     .text(`₹${t.estimate || 0}`, 90 + 100 + 200, y + 6, { width: 120, align: 'left' });
+  y += rowHeight;
+});
+doc.y = y;
+doc.moveDown(2);
 
   // Payments section (left aligned, underlined)
   doc.fontSize(14).text('Payment Details:', 50, doc.y, { underline: true, align: 'left' });
@@ -825,7 +837,7 @@ payments.forEach((p, idx) => {
      .text(p.transactionId || '', 430, py + 6, { width: 120, align: 'left' });
   py += 24;
 });
-doc.y = py; // Update doc.y to the last y position
+//doc.y = py; // Update doc.y to the last y position
 doc.moveDown(2);
 
  
@@ -856,6 +868,110 @@ doc.fontSize(12).fillColor('black')
 
 doc.moveDown(2);
 
+
+  doc.end();
+});
+
+
+app.get('/bill/print/:patientId/txn/:transactionId', async (req, res) => {
+  const fontPath = path.join(__dirname, 'fonts', 'NotoSans-Regular.ttf');
+  const { patientId, transactionId } = req.params;
+  const patient = await Patient.findOne({ patientId: Number(patientId) });
+  if (!patient) return res.status(404).json({ message: 'Patient not found' });
+
+  // Find the payment by transactionId
+  const payment = (patient.payments || []).find(p => String(p.transactionId) === String(transactionId));
+  if (!payment) return res.status(404).json({ message: 'Transaction not found.' });
+
+  // Optionally, get the last treatment
+  const lastTreatment = patient.treatments && patient.treatments.length ? patient.treatments[patient.treatments.length - 1] : null;
+
+  // PDF generation
+  const doc = new PDFDocument();
+  doc.registerFont('NotoSans', fontPath);
+  doc.font('NotoSans');
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename=txn_bill_${patientId}_${transactionId}.pdf`);
+  doc.pipe(res);
+
+  // Header
+  doc.fontSize(20).text('Transaction Bill', { align: 'center' });
+  doc.moveDown();
+
+  // Patient Info
+  doc.fontSize(14).text(`Patient ID: ${patient.patientId}`, { align: 'left' });
+  doc.fontSize(12).text(`Name: ${patient.name}`, { align: 'left' });
+  doc.text(`Phone: ${patient.phone}`, { align: 'left' });
+  doc.text(`Address: ${patient.address}`, { align: 'left' });
+  doc.text(`Date: ${payment.date ? new Date(payment.date).toLocaleDateString() : new Date().toLocaleDateString()}`, { align: 'left' });
+  if (payment.invoiceNo) doc.text(`Invoice No: ${payment.invoiceNo}`, { align: 'left' });
+  doc.moveDown();
+
+  // Last Treatment Table (optional)
+  if (lastTreatment) {
+    doc.fontSize(14).text('Treatment Details:', { underline: true, align: 'left' });
+    doc.moveDown(0.5);
+
+    // Calculate header height (optional, usually 24 is enough)
+    let ty = doc.y;
+    const typeColWidth = 160;
+    const descColWidth = 150;
+    const rowPadding = 6;
+
+    // Calculate row height for the data row
+    const typeHeight = doc.heightOfString(lastTreatment.type || '', { width: typeColWidth });
+    const descHeight = doc.heightOfString(lastTreatment.description || '', { width: descColWidth });
+    const rowHeight = Math.max(typeHeight, descHeight, 32); // 32 for a taller minimum
+
+    // Header
+    doc.rect(50, ty, 540, 32).stroke('black').lineWidth(2);
+    doc.fontSize(11).fillColor('black')
+      .text('No.', 60, ty + rowPadding, { width: 30, align: 'left' })
+      .text('Type', 90, ty + rowPadding, { width: typeColWidth, align: 'left' })
+      .text('Description', 90 + typeColWidth, ty + rowPadding, { width: descColWidth, align: 'left' })
+      .text('Estimate (₹)', 90 + typeColWidth + descColWidth, ty + rowPadding, { width: 120, align: 'left' });
+    ty += 32;
+
+    // Data row
+    doc.rect(50, ty, 540, rowHeight).stroke('black').lineWidth(2);
+    doc.fontSize(12).fillColor('black')
+      .text(1, 60, ty + rowPadding, { width: 30, align: 'left' })
+      .text(lastTreatment.type || '', 90, ty + rowPadding, { width: typeColWidth, align: 'left' })
+      .text(lastTreatment.description || '', 90 + typeColWidth, ty + rowPadding, { width: descColWidth, align: 'left' })
+      .text(`₹${lastTreatment.estimate || 0}`, 90 + typeColWidth + descColWidth, ty + rowPadding, { width: 120, align: 'left' });
+    ty += rowHeight;
+    doc.y = ty;
+    doc.moveDown(2);
+
+  // Payment Table (only this transaction)
+  doc.fontSize(14).text('Payment Details:', 50, doc.y, { underline: true, align: 'left' });
+  doc.moveDown(0.5);
+
+  let y = doc.y;
+  doc.rect(50, y, 540, 24).stroke('black').lineWidth(2);
+  doc.fontSize(12).fillColor('black')
+    .text('No.', 60, y + 6, { width: 30, align: 'left' })
+    .text('Amount (₹)', 100, y + 6, { width: 120, align: 'left' })
+    .text('Date', 220, y + 6, { width: 120, align: 'left' })
+    .text('Mode', 340, y + 6, { width: 80, align: 'left' })
+    .text('Txn ID', 430, y + 6, { width: 120, align: 'left' });
+
+  y += 24;
+
+  doc.rect(50, y, 540, 24).stroke('black').lineWidth(2);
+  doc.fontSize(12).fillColor('black')
+    .text(1, 60, y + 6, { width: 30, align: 'left' })
+    .text(`₹${payment.amount || 0}`, 100, y + 6, { width: 120, align: 'left' })
+    .text(payment.date ? new Date(payment.date).toLocaleDateString() : '', 220, y + 6, { width: 120, align: 'left' })
+    .text(payment.mode || '', 340, y + 6, { width: 80, align: 'left' })
+    .text(payment.transactionId || '', 430, y + 6, { width: 120, align: 'left' });
+
+  y += 24;
+  doc.y = y;
+  doc.moveDown(2);
+
+  
+  }
 
   doc.end();
 });
@@ -895,6 +1011,48 @@ app.get('/lab-warranty/search', async (req, res) => {
   res.json(results);
 });
 
+// Add new medication entry
+app.post('/medication', async (req, res) => {
+  try {
+    const { patientId, patientName, phone, branch, date, doctorObservation, treatmentPlan, medicationAdvised } = req.body;
+
+    // Find or create patient medication document
+    let medDoc = await Medication.findOne({ patientId });
+    if (!medDoc) {
+      medDoc = new Medication({
+        patientId,
+        patientName,
+        phone,
+        branch,
+        history: []
+      });
+    }
+
+    medDoc.history.push({
+      date,
+      doctorObservation,
+      treatmentPlan,
+      medicationAdvised
+    });
+
+    await medDoc.save();
+    res.status(201).json(medDoc);
+  } catch (e) {
+    console.error(e);
+    res.status(400).json({ message: e.message });
+  }
+});
+
+// Get medication history for a patient
+app.get('/medication/history/:patientId', async (req, res) => {
+  const { patientId } = req.params;
+  const medDoc = await Medication.findOne({ patientId: Number(patientId) });
+  if (medDoc && medDoc.history) {
+    res.json(medDoc.history); // Return only the history array
+  } else {
+    res.json([]); // Return empty array if not found
+  }
+});
 
 
 
