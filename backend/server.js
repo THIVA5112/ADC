@@ -7,6 +7,7 @@ import PDFDocument from 'pdfkit';
 import fs from 'fs';  
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
 
 import User from './models/user.js';
 import Patient from './models/patient.js';
@@ -15,7 +16,7 @@ import Appointment from './models/appointment.js';
 import Expense from './models/expense.js';
 import LabWarranty from './models/Lab_Warranty.js'; // Import LabWarranty model
 import Medication from './models/medication.js';
-
+dotenv.config();
 // Polyfill __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
