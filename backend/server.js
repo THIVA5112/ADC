@@ -22,7 +22,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-mongoose.connect('process.env.MONGODB_URI1', {
+mongoose.connect('process.env.MONGODB_URI', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });
@@ -173,7 +173,6 @@ app.put('/patients/patientid/:patientId', async (req, res) => {
 
 // Patient search by name, phone, or patientId using Mongoose
 app.get('/patients', async (req, res) => {
-  console.log(req.query);
   const { capabilityLevel, branch, query, date, month, year } = req.query;
   let filter = {};
 
@@ -413,7 +412,7 @@ app.get('/patients/:id', async (req, res) => {
   res.json(patient);
 });
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
