@@ -26,7 +26,7 @@ mongoose.connect('process.env.MONGODB_URI', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });
-console.log('MongoDB URI:', process.env.MONGODB_URI);
+console.log('MongoDB URI:', JSON.stringify(process.env.MONGODB_URI));
 // Registration endpoint
 app.post('/register', async (req, res) => {
   const { email, password } = req.body;
