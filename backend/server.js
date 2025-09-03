@@ -1,5 +1,7 @@
 import express from 'express';
 import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+dotenv.config();
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import moment from 'moment';
@@ -412,7 +414,7 @@ app.get('/patients/:id', async (req, res) => {
   res.json(patient);
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
