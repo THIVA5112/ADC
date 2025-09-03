@@ -22,11 +22,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-mongoose.connect('process.env.MONGODB_URI', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
-console.log('MongoDB URI:', JSON.stringify(process.env.MONGODB_URI));
+mongoose.connect(
+  'mongodb+srv://Aryadentalcentre:Arya2021@adc.07uoued.mongodb.net/aryadental?retryWrites=true&w=majority&appName=ADC',
+  {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  }
+);
 // Registration endpoint
 app.post('/register', async (req, res) => {
   const { email, password } = req.body;
